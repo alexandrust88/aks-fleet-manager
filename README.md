@@ -46,7 +46,8 @@ Before you begin, ensure you have all the [prerequisites](docs/prerequisites.md)
    ```bash
    ../scripts/create-update-groups.sh
    ```
-Known_Issue. **Manual Step in Azure FrontDoor**
+   
+**Known_Issue**. **Manual Step in Azure FrontDoor**
    - Get the terraform output for all four AKS clusters service endpoint IP addresses. You can get it from step 3 using kubectl get svc for all four clusters.
    - There is a bug, which does not allow to update the service IP addresses for each AKS cluster in Azure Frontdoor->Origin Groups
    - Manually update the IP addresses for Dev and Prod AKS cluster service IP addresses. Go to Azure portal->Azure Front door->Settings->Origin Groups->dev-origin-group
