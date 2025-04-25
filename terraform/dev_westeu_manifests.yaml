@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-demo-app
+  namespace: default
+  labels:
+    app: dev-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dev-demo
+  template:
+    metadata:
+      labels:
+        app: dev-demo
+    spec:
+      containers:
+      - name: dev-demo-app
+        image: nginx:stable
+        ports:
+        - containerPort: 80
+        env:
+        - name: TITLE
+          value: "Development Demo App"
+        - name: VOTE1VALUE
+          value: "Cats"
+        - name: VOTE2VALUE
+          value: "Dogs"
+        resources:
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 6
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  default.conf: |
+    server {
+      listen 80;
+      server_name _;
+      
+      location / {
+        root /usr/share/nginx/html;
+        index index.html;
+      }
+      
+      # Handle /dev path prefix for Front Door routing
+      location /dev {
+        alias /usr/share/nginx/html;
+        index index.html;
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-demo-service
+  namespace: default
+spec:
+  selector:
+    app: dev-demo
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer

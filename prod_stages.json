@@ -1,0 +1,11 @@
+{
+  "stages": [
+    {
+      "name": "prod-stage-1",
+      "groups": [
+        { "name": "production" }
+      ],
+      "afterStageWaitInSeconds": 1800
+    }
+  ]
+}
