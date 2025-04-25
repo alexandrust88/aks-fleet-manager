@@ -195,6 +195,12 @@ Before deploying, verify that your Terraform files are correctly structured:
    - Production apps (Tea vs Coffee voting):
      - Navigate to `https://<FRONT_DOOR_ENDPOINT>/prod/`
 
+4. **Manual Step in Azure FrontDoor**
+   - Get the terraform output for all four AKS clusters service endpoint IP addresses. You can get it from step 3 using kubectl get svc for all four clusters.
+   - There is a bug, which does not allow to update the service IP addresses for each AKS cluster in Azure Frontdoor->Origin Groups
+   - Manually update the IP addresses for Dev and Prod AKS cluster service IP addresses. Go to Azure portal->Azure Front door->Settings->Origin Groups->dev-origin-group
+   - Manually update the IP addresses for Dev and Prod AKS cluster service IP addresses. Go to Azure portal->Azure Front door->Settings->Origin Groups->prod-origin-group       
+
 ## Validate Fleet Manager
 
 1. **Check Fleet Manager**
