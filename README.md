@@ -10,6 +10,7 @@ The architecture includes:
 - Network peering between regions
 - Front Door for global load balancing
 - Update groups for controlled cluster updates
+- Architecture Diagram [https://github.com/saswatmohanty01/aks-fleet-manager/blob/main/architecture-diagrams/AKS_Fleet_Manager_Architecture.png]
 
 ## Prerequisites
 
