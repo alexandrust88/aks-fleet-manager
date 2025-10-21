@@ -1,0 +1,23 @@
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ClusterResourcePlacement
+metadata:
+  name: appscrp
+spec:
+  policy:
+    placementType: PickN
+    numberOfClusters: 1
+    affinity:
+      clusterAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          clusterSelectorTerms:
+            - propertySelector:
+                matchExpressions:
+                  - name: kubernetes-fleet.io/node-count
+                    operator: Eq
+                    values:
+                      - "1"
+  resourceSelectors:
+    - group: ""
+      kind: Namespace
+      name: apps
+      version: v1

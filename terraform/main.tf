@@ -369,140 +369,140 @@ resource "azurerm_kubernetes_fleet_member" "aks_westeu_prod2_member" {
 # Note: Update groups must be created using Azure CLI as they're not directly supported in Terraform
 
 # Create Azure Front Door for global load balancing
-resource "azurerm_cdn_frontdoor_profile" "afd_profile" {
-  name                = local.afd_name
-  resource_group_name = azurerm_resource_group.fleet_rg.name
-  sku_name            = "Standard_AzureFrontDoor"
+# resource "azurerm_cdn_frontdoor_profile" "afd_profile" {
+#   name                = local.afd_name
+#   resource_group_name = azurerm_resource_group.fleet_rg.name
+#   sku_name            = "Standard_AzureFrontDoor"
 
-  tags = local.common_tags
-}
+#   tags = local.common_tags
+# }
 
-resource "azurerm_cdn_frontdoor_endpoint" "afd_endpoint" {
-  name                     = "aks-fleet-endpoint"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.afd_profile.id
-  enabled                  = true
-}
+# resource "azurerm_cdn_frontdoor_endpoint" "afd_endpoint" {
+#   name                     = "aks-fleet-endpoint"
+#   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.afd_profile.id
+#   enabled                  = true
+# }
 
-# Create origin groups for dev and prod environments
-resource "azurerm_cdn_frontdoor_origin_group" "dev_origin_group" {
-  name                     = "dev-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.afd_profile.id
+# # Create origin groups for dev and prod environments
+# resource "azurerm_cdn_frontdoor_origin_group" "dev_origin_group" {
+#   name                     = "dev-origin-group"
+#   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.afd_profile.id
   
-  load_balancing {
-    sample_size                 = 4
-    successful_samples_required = 2
-    additional_latency_in_milliseconds = 50
-  }
+#   load_balancing {
+#     sample_size                 = 4
+#     successful_samples_required = 2
+#     additional_latency_in_milliseconds = 50
+#   }
 
-  health_probe {
-    path                = "/"
-    protocol            = "Http"
-    interval_in_seconds = 60
-  }
-}
+#   health_probe {
+#     path                = "/"
+#     protocol            = "Http"
+#     interval_in_seconds = 60
+#   }
+# }
 
-resource "azurerm_cdn_frontdoor_origin_group" "prod_origin_group" {
-  name                     = "prod-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.afd_profile.id
+# resource "azurerm_cdn_frontdoor_origin_group" "prod_origin_group" {
+#   name                     = "prod-origin-group"
+#   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.afd_profile.id
   
-  load_balancing {
-    sample_size                 = 4
-    successful_samples_required = 2
-    additional_latency_in_milliseconds = 50
-  }
+#   load_balancing {
+#     sample_size                 = 4
+#     successful_samples_required = 2
+#     additional_latency_in_milliseconds = 50
+#   }
 
-  health_probe {
-    path                = "/"
-    protocol            = "Http"
-    interval_in_seconds = 60
-  }
-}
+#   health_probe {
+#     path                = "/"
+#     protocol            = "Http"
+#     interval_in_seconds = 60
+#   }
+# }
 
-# Create origins for all clusters
-# We'll use placeholders for the ingress IPs
-resource "azurerm_cdn_frontdoor_origin" "dev_eastus_origin" {
-  name                           = "dev-eastus"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.dev_origin_group.id
-  enabled                        = true
+# # Create origins for all clusters
+# # We'll use placeholders for the ingress IPs
+# resource "azurerm_cdn_frontdoor_origin" "dev_eastus_origin" {
+#   name                           = "dev-eastus"
+#   cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.dev_origin_group.id
+#   enabled                        = true
   
-  host_name                      = "dev-eastus-placeholder-ip.nip.io"
-  http_port                      = 80
-  https_port                     = 443
-  origin_host_header             = azurerm_kubernetes_cluster.aks_eastus_dev1.fqdn
-  priority                       = 1
-  weight                         = 1000
-  certificate_name_check_enabled = true
-}
+#   host_name                      = "dev-eastus-placeholder-ip.nip.io"
+#   http_port                      = 80
+#   https_port                     = 443
+#   origin_host_header             = azurerm_kubernetes_cluster.aks_eastus_dev1.fqdn
+#   priority                       = 1
+#   weight                         = 1000
+#   certificate_name_check_enabled = true
+# }
 
-resource "azurerm_cdn_frontdoor_origin" "dev_westeu_origin" {
-  name                           = "dev-westeu"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.dev_origin_group.id
-  enabled                        = true
+# resource "azurerm_cdn_frontdoor_origin" "dev_westeu_origin" {
+#   name                           = "dev-westeu"
+#   cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.dev_origin_group.id
+#   enabled                        = true
   
-  host_name                      = "dev-westeu-placeholder-ip.nip.io"
-  http_port                      = 80
-  https_port                     = 443
-  origin_host_header             = azurerm_kubernetes_cluster.aks_westeu_dev2.fqdn
-  priority                       = 1
-  weight                         = 1000
-  certificate_name_check_enabled = true
-}
+#   host_name                      = "dev-westeu-placeholder-ip.nip.io"
+#   http_port                      = 80
+#   https_port                     = 443
+#   origin_host_header             = azurerm_kubernetes_cluster.aks_westeu_dev2.fqdn
+#   priority                       = 1
+#   weight                         = 1000
+#   certificate_name_check_enabled = true
+# }
 
-resource "azurerm_cdn_frontdoor_origin" "prod_eastus_origin" {
-  name                           = "prod-eastus"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.prod_origin_group.id
-  enabled                        = true
+# resource "azurerm_cdn_frontdoor_origin" "prod_eastus_origin" {
+#   name                           = "prod-eastus"
+#   cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.prod_origin_group.id
+#   enabled                        = true
   
-  host_name                      = "prod-eastus-placeholder-ip.nip.io"
-  http_port                      = 80
-  https_port                     = 443
-  origin_host_header             = azurerm_kubernetes_cluster.aks_eastus_prod1.fqdn
-  priority                       = 1
-  weight                         = 1000
-  certificate_name_check_enabled = true
-}
+#   host_name                      = "prod-eastus-placeholder-ip.nip.io"
+#   http_port                      = 80
+#   https_port                     = 443
+#   origin_host_header             = azurerm_kubernetes_cluster.aks_eastus_prod1.fqdn
+#   priority                       = 1
+#   weight                         = 1000
+#   certificate_name_check_enabled = true
+# }
 
-resource "azurerm_cdn_frontdoor_origin" "prod_westeu_origin" {
-  name                           = "prod-westeu"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.prod_origin_group.id
-  enabled                        = true
+# resource "azurerm_cdn_frontdoor_origin" "prod_westeu_origin" {
+#   name                           = "prod-westeu"
+#   cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.prod_origin_group.id
+#   enabled                        = true
   
-  host_name                      = "prod-westeu-placeholder-ip.nip.io"
-  http_port                      = 80
-  https_port                     = 443
-  origin_host_header             = azurerm_kubernetes_cluster.aks_westeu_prod2.fqdn
-  priority                       = 1
-  weight                         = 1000
-  certificate_name_check_enabled = true
-}
+#   host_name                      = "prod-westeu-placeholder-ip.nip.io"
+#   http_port                      = 80
+#   https_port                     = 443
+#   origin_host_header             = azurerm_kubernetes_cluster.aks_westeu_prod2.fqdn
+#   priority                       = 1
+#   weight                         = 1000
+#   certificate_name_check_enabled = true
+# }
 
-# Create routes for dev and prod with path-based routing
-resource "azurerm_cdn_frontdoor_route" "dev_route" {
-  name                          = "dev-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.afd_endpoint.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.dev_origin_group.id
-  cdn_frontdoor_origin_ids      = [
-    azurerm_cdn_frontdoor_origin.dev_eastus_origin.id,
-    azurerm_cdn_frontdoor_origin.dev_westeu_origin.id
-  ]
+# # Create routes for dev and prod with path-based routing
+# resource "azurerm_cdn_frontdoor_route" "dev_route" {
+#   name                          = "dev-route"
+#   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.afd_endpoint.id
+#   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.dev_origin_group.id
+#   cdn_frontdoor_origin_ids      = [
+#     azurerm_cdn_frontdoor_origin.dev_eastus_origin.id,
+#     azurerm_cdn_frontdoor_origin.dev_westeu_origin.id
+#   ]
   
-  patterns_to_match     = ["/dev/*"]
-  supported_protocols   = ["Http", "Https"]
-  forwarding_protocol   = "HttpOnly"
-  link_to_default_domain = true
-}
+#   patterns_to_match     = ["/dev/*"]
+#   supported_protocols   = ["Http", "Https"]
+#   forwarding_protocol   = "HttpOnly"
+#   link_to_default_domain = true
+# }
 
-resource "azurerm_cdn_frontdoor_route" "prod_route" {
-  name                          = "prod-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.afd_endpoint.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.prod_origin_group.id
-  cdn_frontdoor_origin_ids      = [
-    azurerm_cdn_frontdoor_origin.prod_eastus_origin.id,
-    azurerm_cdn_frontdoor_origin.prod_westeu_origin.id
-  ]
+# resource "azurerm_cdn_frontdoor_route" "prod_route" {
+#   name                          = "prod-route"
+#   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.afd_endpoint.id
+#   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.prod_origin_group.id
+#   cdn_frontdoor_origin_ids      = [
+#     azurerm_cdn_frontdoor_origin.prod_eastus_origin.id,
+#     azurerm_cdn_frontdoor_origin.prod_westeu_origin.id
+#   ]
   
-  patterns_to_match     = ["/prod/*"]
-  supported_protocols   = ["Http", "Https"]
-  forwarding_protocol   = "HttpOnly"
-  link_to_default_domain = true
-}
+#   patterns_to_match     = ["/prod/*"]
+#   supported_protocols   = ["Http", "Https"]
+#   forwarding_protocol   = "HttpOnly"
+#   link_to_default_domain = true
+# }

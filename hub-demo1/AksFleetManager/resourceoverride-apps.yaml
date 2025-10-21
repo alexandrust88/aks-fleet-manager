@@ -1,0 +1,22 @@
+apiVersion: placement.kubernetes-fleet.io/v1alpha1
+kind: ResourceOverride
+metadata:
+  name: appsro
+  namespace: apps
+spec:
+  policy:
+    overrideRules:
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  env: prod
+        jsonPatchOverrides:
+          - op: replace
+            path: /spec/template/spec/containers/0/image
+            value: "nginx:1.20.0"
+  resourceSelectors:
+    - group: apps
+      kind: Deployment
+      version: v1
+      name: echo

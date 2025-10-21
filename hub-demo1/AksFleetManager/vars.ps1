@@ -1,0 +1,5 @@
+$group = "rg-fleet-demo"
+$cluster1 = "demo1cluster"
+$cluster2 = "demo2cluster"
+$cluster3 = "demo3cluster"
+$cluster4 = "demo4cluster"

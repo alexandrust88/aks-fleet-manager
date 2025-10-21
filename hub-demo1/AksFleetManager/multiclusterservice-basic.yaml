@@ -1,0 +1,27 @@
+apiVersion: networking.fleet.azure.com/v1alpha1
+kind: MultiClusterService
+metadata:
+  name: echo-mcs
+  namespace: apps
+spec:
+  serviceImport:
+    name: echo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+  namespace: apps
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: echo
+---
+apiVersion: networking.fleet.azure.com/v1alpha1
+kind: ServiceExport
+metadata:
+  name: echo
+  namespace: apps

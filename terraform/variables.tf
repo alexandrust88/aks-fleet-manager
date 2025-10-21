@@ -19,25 +19,25 @@ variable "resource_prefix" {
 variable "dev_node_count" {
   description = "Number of nodes in development AKS clusters"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "prod_node_count" {
   description = "Number of nodes in production AKS clusters"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "dev_node_vm_size" {
   description = "VM size for development AKS clusters"
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_B2s"
 }
 
 variable "prod_node_vm_size" {
   description = "VM size for production AKS clusters"
   type        = string
-  default     = "Standard_D4s_v3"
+  default     = "Standard_B2s"
 }
 
 variable "kubernetes_version" {

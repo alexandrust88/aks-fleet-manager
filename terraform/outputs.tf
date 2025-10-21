@@ -42,10 +42,10 @@ output "prod_clusters" {
   sensitive   = true
 }
 
-output "afd_endpoint_hostname" {
-  value       = azurerm_cdn_frontdoor_endpoint.afd_endpoint.host_name
-  description = "Azure Front Door endpoint hostname"
-}
+# output "afd_endpoint_hostname" {
+#   value       = azurerm_cdn_frontdoor_endpoint.afd_endpoint.host_name
+#   description = "Azure Front Door endpoint hostname"
+# }
 
 output "resource_group_names" {
   value = {
@@ -99,10 +99,10 @@ output "kubeconfig_commands" {
   description = "Commands to get kubeconfig for each AKS cluster"
 }
 
-output "application_urls" {
-  value = {
-    dev_url = "https://${azurerm_cdn_frontdoor_endpoint.afd_endpoint.host_name}/dev"
-    prod_url = "https://${azurerm_cdn_frontdoor_endpoint.afd_endpoint.host_name}/prod"
-  }
-  description = "URLs to access the dev and prod applications via Azure Front Door"
-}
+# output "application_urls" {
+#   value = {
+#     dev_url = "https://${azurerm_cdn_frontdoor_endpoint.afd_endpoint.host_name}/dev"
+#     prod_url = "https://${azurerm_cdn_frontdoor_endpoint.afd_endpoint.host_name}/prod"
+#   }
+#   description = "URLs to access the dev and prod applications via Azure Front Door"
+# }

@@ -1,0 +1,14 @@
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ClusterResourcePlacement
+metadata:
+  name: appscrp
+spec:
+  policy:
+    placementType: PickFixed
+    clusterNames:
+      - "demo3cluster"
+  resourceSelectors:
+    - group: ''
+      kind: Namespace
+      name: apps
+      version: v1
