@@ -1,6 +1,6 @@
 # AKS Fleet Manager Overview
-
-
+az fleet list -o table   
+az fleet get-credentials --resource-group NetworkWatcherRG --name hub3 --file ~/hub3-fleet-kubeconfig.yaml               
 32284  kubectl get nodes
 32285  az login
 32286  az fleet get-credentials --resource-group NetworkWatcherRG --name hub3 --file ~/hub3-fleet-kubeconfig.yaml
