@@ -1,0 +1,430 @@
+# Azure Fleet Manager Terraform Configuration
+# For managing 300+ clusters across multiple subscriptions
+# Architecture: Regional Fleets (EU, US, ASIA) with node-image-only updates
+
+terraform {
+  required_version = ">= 1.1.7"
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+
+  # Store state in Azure Storage
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "stfleetterraform"
+    container_name       = "fleet-state"
+    key                  = "fleet-manager.tfstate"
+  }
+}
+
+provider "azurerm" {
+  features {
+    kubernetes_cluster {
+      run_state_validation = true
+    }
+  }
+}
+
+# ===== VARIABLES =====
+
+variable "tenant_id" {
+  description = "Azure AD Tenant ID"
+  type        = string
+}
+
+variable "fleet_regions" {
+  description = "Regional Fleets configuration"
+  type = map(object({
+    location             = string
+    resource_group_name  = string
+    subscription_id      = string
+    hub_enabled          = bool
+    max_clusters         = number
+    environment_tags     = list(string)
+  }))
+
+  default = {
+    "eu" = {
+      location             = "westeurope"
+      resource_group_name  = "rg-fleet-eu"
+      subscription_id      = "sub-eu-prod"
+      hub_enabled          = false
+      max_clusters         = 100
+      environment_tags     = ["dev", "stage", "prod"]
+    }
+    "us" = {
+      location             = "eastus"
+      resource_group_name  = "rg-fleet-us"
+      subscription_id      = "sub-us-prod"
+      hub_enabled          = false
+      max_clusters         = 100
+      environment_tags     = ["dev", "stage", "prod"]
+    }
+    "asia" = {
+      location             = "southeastasia"
+      resource_group_name  = "rg-fleet-asia"
+      subscription_id      = "sub-asia-prod"
+      hub_enabled          = false
+      max_clusters         = 100
+      environment_tags     = ["dev", "stage"]
+    }
+  }
+}
+
+variable "clusters_inventory" {
+  description = "Map of clusters to join to fleets"
+  type = map(object({
+    name            = string
+    resource_group  = string
+    subscription_id = string
+    fleet_region    = string
+    environment     = string
+    region          = string
+    tier            = string
+    update_group    = string
+    labels = map(string)
+  }))
+}
+
+variable "tags_global" {
+  description = "Global tags for all resources"
+  type        = map(string)
+  default = {
+    managed_by   = "terraform"
+    purpose      = "node-image-updates"
+    team         = "platform"
+  }
+}
+
+# ===== LOCALS =====
+
+locals {
+  # Flatten clusters for easier processing
+  all_clusters = flatten([
+    for fleet_region, config in var.fleet_regions : [
+      for cluster_key, cluster in var.clusters_inventory : {
+        key          = cluster_key
+        name         = cluster.name
+        rg           = cluster.resource_group
+        sub_id       = cluster.subscription_id
+        fleet_region = cluster.fleet_region
+        environment  = cluster.environment
+        region       = cluster.region
+        tier         = cluster.tier
+        group        = cluster.update_group
+        labels       = cluster.labels
+      }
+      if cluster.fleet_region == fleet_region
+    ]
+  ])
+
+  # Transform to map by key
+  clusters_map = {
+    for c in local.all_clusters : c.key => c
+  }
+}
+
+# ===== RESOURCE: FLEET INSTANCES =====
+
+resource "azurerm_kubernetes_fleet_manager" "regional_fleets" {
+  for_each = var.fleet_regions
+
+  name                = "fleet-${each.key}"
+  location            = each.value.location
+  resource_group_name = azurerm_resource_group.fleet_rgs[each.key].name
+
+  # Hub cluster disabled - managing node updates only
+  hub_profile {
+    dns_prefix = "fleet-hub-${each.key}"
+    # hub_network_profile: optional, only if vnet integration needed
+  }
+
+  tags = merge(
+    var.tags_global,
+    {
+      region              = each.key
+      location            = each.value.location
+      max_clusters        = each.value.max_clusters
+      hub_enabled         = each.value.hub_enabled
+    }
+  )
+
+  depends_on = [azurerm_resource_group.fleet_rgs]
+}
+
+# ===== RESOURCE: RESOURCE GROUPS =====
+
+resource "azurerm_resource_group" "fleet_rgs" {
+  for_each = var.fleet_regions
+
+  name     = each.value.resource_group_name
+  location = each.value.location
+
+  tags = merge(
+    var.tags_global,
+    {
+      region = each.key
+    }
+  )
+}
+
+# ===== RESOURCE: FLEET MEMBERS =====
+
+resource "azurerm_kubernetes_fleet_member" "clusters" {
+  for_each = local.clusters_map
+
+  resource_group_name       = azurerm_resource_group.fleet_rgs[each.value.fleet_region].name
+  kubernetes_fleet_id       = azurerm_kubernetes_fleet_manager.regional_fleets[each.value.fleet_region].id
+  kubernetes_fleet_member_name = each.value.name
+  kubernetes_cluster_id     = "/subscriptions/${each.value.sub_id}/resourceGroups/${each.value.rg}/providers/Microsoft.ContainerService/managedClusters/${each.value.name}"
+
+  group = each.value.group
+
+  # Labels for update orchestration
+  labels = merge(
+    each.value.labels,
+    {
+      environment = each.value.environment
+      region      = each.value.region
+      tier        = each.value.tier
+      fleet       = "fleet-${each.value.fleet_region}"
+    }
+  )
+
+  depends_on = [azurerm_kubernetes_fleet_manager.regional_fleets]
+}
+
+# ===== RESOURCE: UPDATE STRATEGIES =====
+
+# Strategy 1: Ring-based rollout (dev → stage → prod)
+resource "azurerm_kubernetes_fleet_update_strategy" "ring_rollout" {
+  for_each = var.fleet_regions
+
+  name                = "strategy-ring-dev-stage-prod"
+  kubernetes_fleet_id = azurerm_kubernetes_fleet_manager.regional_fleets[each.key].id
+  stage {
+    name = "stage-1-dev"
+
+    group {
+      name = "dev-group"
+    }
+
+    wait_duration_in_seconds = 300
+  }
+
+  stage {
+    name = "stage-2-stage"
+
+    group {
+      name = "stage-group"
+    }
+
+    wait_duration_in_seconds = 600
+  }
+
+  stage {
+    name = "stage-3-prod"
+
+    group {
+      name = "prod-group"
+    }
+
+    wait_duration_in_seconds = 0
+  }
+}
+
+# Strategy 2: Canary rollout (single cluster at a time for prod)
+resource "azurerm_kubernetes_fleet_update_strategy" "canary_prod" {
+  for_each = var.fleet_regions
+
+  name                = "strategy-canary-prod"
+  kubernetes_fleet_id = azurerm_kubernetes_fleet_manager.regional_fleets[each.key].id
+
+  stage {
+    name = "canary-wave-1"
+
+    group {
+      name = "prod-canary-001"
+    }
+
+    wait_duration_in_seconds = 900
+  }
+
+  stage {
+    name = "canary-wave-2"
+
+    group {
+      name = "prod-wave-2"
+    }
+
+    wait_duration_in_seconds = 0
+  }
+}
+
+# ===== RESOURCE: AUTO-UPGRADE PROFILES =====
+
+resource "azurerm_kubernetes_fleet_auto_upgrade_profile" "nodeimage_auto_upgrade" {
+  for_each = var.fleet_regions
+
+  name                = "auto-upgrade-nodeimage"
+  kubernetes_fleet_id = azurerm_kubernetes_fleet_manager.regional_fleets[each.key].id
+  channel             = "NodeImage"  # Node image updates only
+  update_sequence     = "Stages"
+
+  upgrade_strategy_id = azurerm_kubernetes_fleet_update_strategy.ring_rollout[each.key].id
+
+  enabled = true
+
+  depends_on = [
+    azurerm_kubernetes_fleet_update_strategy.ring_rollout,
+  ]
+}
+
+# ===== DATA: AKS CLUSTERS (for reference) =====
+
+data "azurerm_kubernetes_cluster" "members" {
+  for_each = local.clusters_map
+
+  name                = each.value.name
+  resource_group_name = each.value.rg
+
+  # Allows cross-subscription reference
+  provider = azurerm
+}
+
+# ===== OUTPUTS =====
+
+output "fleet_ids" {
+  description = "Fleet Manager IDs by region"
+  value = {
+    for region, fleet in azurerm_kubernetes_fleet_manager.regional_fleets :
+    region => fleet.id
+  }
+}
+
+output "fleet_member_count" {
+  description = "Number of member clusters per fleet"
+  value = {
+    for region in keys(var.fleet_regions) :
+    region => length([
+      for c in local.all_clusters : c.key
+      if c.fleet_region == region
+    ])
+  }
+}
+
+output "update_strategies" {
+  description = "Update strategy IDs"
+  value = {
+    for region, strategy in azurerm_kubernetes_fleet_update_strategy.ring_rollout :
+    region => {
+      ring_rollout = strategy.id
+      canary_prod  = azurerm_kubernetes_fleet_update_strategy.canary_prod[region].id
+    }
+  }
+}
+
+output "auto_upgrade_profile_ids" {
+  description = "Auto-upgrade profile IDs"
+  value = {
+    for region, profile in azurerm_kubernetes_fleet_auto_upgrade_profile.nodeimage_auto_upgrade :
+    region => profile.id
+  }
+}
+
+output "fleet_hub_status" {
+  description = "Fleet hub cluster status"
+  value = {
+    for region, fleet in azurerm_kubernetes_fleet_manager.regional_fleets :
+    region => "hub-${fleet.name} (API Server: ${fleet.hub_profile[0].api_server_access_profile[0].enabled})"
+  }
+}
+
+# ===== LOCALS FOR TERRAFORM.TFVARS GENERATION =====
+
+locals {
+  # Example: Generate terraform.tfvars content (document in README)
+  tfvars_example = <<-EOT
+    tenant_id = "YOUR_TENANT_ID"
+    
+    fleet_regions = {
+      eu = {
+        location             = "westeurope"
+        resource_group_name  = "rg-fleet-eu"
+        subscription_id      = "YOUR_SUB_EU"
+        hub_enabled          = false
+        max_clusters         = 100
+        environment_tags     = ["dev", "stage", "prod"]
+      }
+      us = {
+        location             = "eastus"
+        resource_group_name  = "rg-fleet-us"
+        subscription_id      = "YOUR_SUB_US"
+        hub_enabled          = false
+        max_clusters         = 100
+        environment_tags     = ["dev", "stage", "prod"]
+      }
+    }
+
+    # Cluster inventory - Example format:
+    clusters_inventory = {
+      "cluster-eu-dev-001" = {
+        name            = "aks-dev-eu-001"
+        resource_group  = "rg-dev-eu"
+        subscription_id = "YOUR_SUB_EU"
+        fleet_region    = "eu"
+        environment     = "dev"
+        region          = "westeurope"
+        tier            = "standard"
+        update_group    = "dev-group"
+        labels = {
+          team       = "platform"
+          criticality = "low"
+        }
+      }
+      "cluster-eu-prod-001" = {
+        name            = "aks-prod-eu-001"
+        resource_group  = "rg-prod-eu"
+        subscription_id = "YOUR_SUB_EU"
+        fleet_region    = "eu"
+        environment     = "prod"
+        region          = "westeurope"
+        tier            = "critical"
+        update_group    = "prod-group"
+        labels = {
+          team        = "platform"
+          criticality = "high"
+        }
+      }
+    }
+  EOT
+}
+
+# ===== NOTES FOR IMPLEMENTATION =====
+
+/*
+IMPLEMENTATION STEPS:
+
+1. Create terraform.tfvars from the example in locals.tfvars_example
+2. Run: terraform init (configures remote state)
+3. Run: terraform plan -out=tfplan
+4. Review plan carefully - ensure correct clusters are targeted
+5. Run: terraform apply tfplan
+6. Verify fleets created: az fleet list -o table
+7. Verify members joined: az fleet member list --fleet-name fleet-eu
+
+SCALING TO 300+ CLUSTERS:
+- Split clusters_inventory across multiple tfvars files
+- Use modules to manage per-region configurations
+- Implement GitOps with Azure DevOps or GitHub Actions
+
+MAINTENANCE:
+- Version control all .tf and .tfvars files
+- Document any manual changes in comments
+- Run terraform plan regularly to detect drift
+- Use remote state locking to prevent concurrent edits
+*/
