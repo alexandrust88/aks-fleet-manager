@@ -1,5 +1,24 @@
 # AKS Fleet Manager Overview
 
+
+32284  kubectl get nodes
+32285  az login
+32286  az fleet get-credentials --resource-group NetworkWatcherRG --name hub3 --file ~/hub3-fleet-kubeconfig.yaml
+32287  kubelogin convert-kubeconfig -l azurecli
+32288  kubectl get nodes
+32289  code .
+32290  ls
+32291  cd hub-demo1/AksFleetManager
+32292  ls
+32293  kubectl create ns apps\n
+32294  kubectl apply -f clusterresourceplacement.yaml\n
+32295  kubectl describe ClusterResourcePlacement appsrcp
+32296  kubectl describe ClusterResourcePlacement appscrp
+32297  kubectl get membercluster
+32298  kubectl get membercluster --show-labels
+32299  git status
+
+
 Azure Kubernetes Fleet Manager (AKS Fleet Manager) allows for the management of multiple AKS clusters at scale. There are two types of AKS Fleet Manager instances: **hub** and **non-hub**.
 
 - **Non-Hub AKS Fleet Manager Instance** - This acts solely as a grouping entity in Azure Resource Manager (ARM) without a central hub. It supports update orchestration but lacks workload orchestration and layer-4 load balancing. It does not incur additional costs.
