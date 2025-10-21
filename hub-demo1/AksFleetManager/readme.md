@@ -17,6 +17,13 @@ az fleet get-credentials --resource-group NetworkWatcherRG --name hub3 --file ~/
 32297  kubectl get membercluster
 32298  kubectl get membercluster --show-labels
 32299  git status
+ubectl get membercluster                                                                  
+NAME                       JOINED   AGE   MEMBER-AGENT-LAST-SEEN   NODE-COUNT   AVAILABLE-CPU   AVAILABLE-MEMORY
+m2-networkwatcherrg        True     17h   5s                       1            658m            1824856Ki
+member1-networkwatcherrg   True     17h   13s                      2            2208m           10339156Ki
+
+
+
 
 
 Azure Kubernetes Fleet Manager (AKS Fleet Manager) allows for the management of multiple AKS clusters at scale. There are two types of AKS Fleet Manager instances: **hub** and **non-hub**.
